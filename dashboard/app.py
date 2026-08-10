@@ -31,7 +31,7 @@ st.caption("CSOP iEdge S-REIT Leaders Index ETF (SGX:SRT) · Multi-factor + ML +
 # Sidebar
 with st.sidebar:
     st.header("Controls")
-    conf_thresh = st.slider("High-conviction threshold", 0.55, 0.90, 0.72, 0.01)
+    conf_thresh = st.slider("High-conviction threshold", 0.50, 0.90, 0.60, 0.01)
     use_synth = st.checkbox("Force synthetic data (bypass yfinance rate limits)", value=True)
     st.markdown("---")
     st.markdown("**Data notes**")
@@ -129,13 +129,11 @@ if bt_btn:
 
     if bt["details"] is not None and len(bt["details"]) > 0:
         details = bt["details"]
-        # Equity curve of a simple signal strategy (long only on high-conv up, short on high-conv down)
         details = details.copy()
         details["position"] = 0
         details.loc[details["high_conv"] & (details["pred"] == 1), "position"] = 1
         details.loc[details["high_conv"] & (details["pred"] == 0), "position"] = -1
-        # For illustration we use actual direction as proxy return sign
-        details["ret"] = np.where(details["actual"] == 1, 0.004, -0.004)  # approx daily magnitude
+        details["ret"] = np.where(details["actual"] == 1, 0.004, -0.004)
         details["strat_ret"] = details["position"].shift(1).fillna(0) * details["ret"]
         details["cum"] = (1 + details["strat_ret"]).cumprod()
 

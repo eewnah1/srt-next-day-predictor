@@ -306,7 +306,13 @@ app.add_middleware(
 
 def _run_prediction():
     global _latest_prediction, _latest_backtest
-    p = _get_srt(); pred = p.predict_next(confidence_threshold=0.60); return {'prediction': pred}
+    p = _get_srt()
+    pred = p.predict_next(confidence_threshold=0.60)
+    pred['proba_up'] = pred.get('probability_up', 0.5)
+    pred['proba_down'] = 1 - pred['proba_up']
+    d = pred.get('direction', 0)
+    pred['direction'] = 'UP' if d == 1 else ('DOWN' if d == -1 else 'NEUTRAL')
+    return {'prediction': pred}
 
 def _get_backtest_summary():
     return None

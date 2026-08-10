@@ -42,7 +42,7 @@ class HybridPredictor:
             "seq_holdout_acc": self.seq_model.get("holdout_acc") if self.seq_model else None,
         }
 
-    def predict_next(self, confidence_threshold: float = 0.72) -> Dict[str, Any]:
+    def predict_next(self, confidence_threshold: float = 0.65) -> Dict[str, Any]:
         """
         Produce next-day prediction.
         Returns direction, probability, composite score, confidence, factor breakdown.
@@ -60,7 +60,6 @@ class HybridPredictor:
         tech = float(last["tech_score"].iloc[0])
         fund = float(last["fund_score"].iloc[0])
         econ = float(last["econ_score"].iloc[0])
-        factor_dir = score_to_direction(composite, threshold=10)
 
         # ML proba
         ml_p = 0.5
@@ -78,12 +77,20 @@ class HybridPredictor:
             except Exception:
                 pass
 
-        # Blend (dynamic weight toward models when they agree with factors)
-        blend_p = 0.30 * (0.5 + composite / 200) + 0.40 * ml_p + 0.30 * seq_p
-        blend_p = float(np.clip(blend_p, 0.01, 0.99))
+        # Blend
+        factor_p = 0.5 + np.clip(composite / 80.0, -0.35, 0.35)
+        blend_p = 0.35 * factor_p + 0.35 * ml_p + 0.30 * seq_p
+        blend_p = float(np.clip(blend_p, 0.02, 0.98))
 
         direction = 1 if blend_p >= 0.5 else -1
-        confidence = abs(blend_p - 0.5) * 2  # 0..1
+
+        # Confidence: base from |p-0.5| + agreement bonus + |composite| strength
+        base_conf = abs(blend_p - 0.5) * 2
+        agree = 0.0
+        if (ml_p > 0.55 and seq_p > 0.55 and composite > 8) or (ml_p < 0.45 and seq_p < 0.45 and composite < -8):
+            agree = 0.25
+        strength = min(0.25, abs(composite) / 100.0)
+        confidence = float(np.clip(base_conf + agree + strength, 0.0, 1.0))
 
         high_conviction = confidence >= confidence_threshold
         signal = direction if high_conviction else 0
@@ -91,8 +98,8 @@ class HybridPredictor:
         return {
             "as_of": asof,
             "price": price,
-            "direction": direction,          # 1 up, -1 down
-            "signal": signal,                # only non-zero when high conviction
+            "direction": direction,
+            "signal": signal,
             "probability_up": blend_p,
             "confidence": confidence,
             "high_conviction": high_conviction,

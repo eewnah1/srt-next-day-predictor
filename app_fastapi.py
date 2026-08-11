@@ -42,14 +42,7 @@ def _clean_json(obj):
     return obj
 
 
-from models.hybrid_predictor import HybridPredictor
-_srt_predictor = None
-def _get_srt():
-    global _srt_predictor
-    if _srt_predictor is None:
-        _srt_predictor = HybridPredictor()
-        _srt_predictor.train(force_synthetic=False)
-    return _srt_predictor
+import multi_horizon as mh
 
 _latest_prediction = None
 _latest_backtest = None
@@ -306,16 +299,12 @@ app.add_middleware(
 
 def _run_prediction():
     global _latest_prediction, _latest_backtest
-    p = _get_srt()
-    pred = p.predict_next(confidence_threshold=0.60)
-    pred['proba_up'] = pred.get('probability_up', 0.5)
-    pred['proba_down'] = 1 - pred['proba_up']
-    d = pred.get('direction', 0)
-    pred['direction'] = 'UP' if d == 1 else ('DOWN' if d == -1 else 'NEUTRAL')
-    return {'prediction': pred}
+    res = mh.run_pipeline(force_retrain=False)
+    return {'prediction': res['prediction'], 'backtest': res['backtest']}
 
 def _get_backtest_summary():
-    return None
+    res = mh.run_pipeline(force_retrain=False)
+    return res['backtest']
 
 @app.get("/health")
 async def health():

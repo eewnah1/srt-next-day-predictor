@@ -4,7 +4,9 @@ __pycache__/
 .gradio/
 .streamlit/
 models/
+models/multi_horizon/
 data/_cache/
+data/multi_cache/
 *.parquet
 *.db
 .DS_Store

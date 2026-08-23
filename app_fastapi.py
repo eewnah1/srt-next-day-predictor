@@ -1,5 +1,7 @@
 """FastAPI dashboard for SRT.SI (CSOP iEdge S-REIT Leaders ETF) Next-Day Predictor."""
 from __future__ import annotations
+from research_mcp_stack import fetch_week_ahead_us_apac
+from free_mcp_stack import fetch_free_mcp_stack, overlay_prediction
 
 import json
 from contextlib import asynccontextmanager
@@ -7,7 +9,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from anyio.to_thread import run_sync
 from datetime import date, datetime
 
@@ -308,7 +310,7 @@ def _get_backtest_summary():
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    return {"status": "ok", "mcp_stack": True, "mcp_research": True}
 
 @app.post("/api/v1/predict")
 async def predict():
@@ -338,6 +340,39 @@ async def backtest_summary():
 @app.get("/", response_class=HTMLResponse)
 async def dashboard():
     return DASHBOARD_HTML.replace("__TITLE__", "SRT.SI (CSOP iEdge S-REIT Leaders ETF) Next-Day Predictor")
+
+
+@app.get("/api/v1/mcp/stack")
+async def api_mcp_stack(universe: str = "general"):
+    return fetch_free_mcp_stack(universe)
+
+
+@app.get("/api/v1/mcp/research")
+async def api_mcp_research():
+    return fetch_week_ahead_us_apac()
+
+
+MCP_PAGE = """<!DOCTYPE html><html><body style="background:#0b1220;color:#e2e8f0;font-family:sans-serif;padding:24px"><h1>Predictor MCP stack</h1><p><a href='/api/v1/mcp/research' style='color:#93c5fd'>week-ahead research</a></p><pre id=p>loading</pre><script>fetch('/api/v1/mcp/stack').then(r=>r.json()).then(d=>{document.getElementById('p').textContent=JSON.stringify(d,null,2)})</script></body></html>"""
+
+
+@app.get("/api/v1/mcp", response_class=HTMLResponse)
+async def api_mcp_page():
+    return HTMLResponse(MCP_PAGE)
+
+
+@app.get("/mcp", response_class=HTMLResponse, include_in_schema=False)
+async def mcp_alias_page():
+    return RedirectResponse("/api/v1/mcp")
+
+
+@app.get("/mcp/research", include_in_schema=False)
+async def mcp_research_alias():
+    return RedirectResponse("/api/v1/mcp/research")
+
+
+@app.get("/mcp/stack", include_in_schema=False)
+async def mcp_stack_alias():
+    return RedirectResponse("/api/v1/mcp/stack")
 
 if __name__ == "__main__":
     import uvicorn

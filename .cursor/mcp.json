@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "trading-economics": {"url": "https://mcp.tradingeconomics.com"},
+    "finnhub-hosted": {"url": "https://mcp.finnhub.io/mcp"},
+    "cnbs": {"command": "npx", "args": ["-y", "mcp-cnbs"]},
+    "earningscalls": {"url": "https://mcp.earningscalls.dev/mcp"}
+  }
+}
